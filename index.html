@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="de">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>MCQ Lern-App — Final</title>
+    <style>
+        :root{
+            --bg:#f7f8fb; --card:#ffffff; --muted:#6b7280; --accent:#2b6cb0; --accent-2:#60a5fa;
+            --success:#16a34a; --danger:#ef4444;
+        }
+        *{box-sizing:border-box;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+        body{margin:0;background:var(--bg);min-height:100vh;color:#0f172a}
+        header{display:flex;justify-content:space-between;align-items:center;padding:16px 22px;background:white;border-bottom:1px solid #eef2f7}
+        h1{margin:0;font-size:18px;color:var(--accent)}
+        .top-actions{display:flex;gap:8px}
+        .btn{background:var(--accent);color:white;border:0;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:600}
+        .btn.ghost{background:transparent;color:var(--accent);border:1px solid rgba(43,108,176,0.12)}
+        main{display:grid;grid-template-columns:260px 1fr;gap:16px;padding:16px}
+        .sidebar{background:var(--card);padding:12px;border-radius:10px;box-shadow:0 6px 18px rgba(12,18,44,0.04);height:calc(100vh - 120px);overflow:auto}
+        .sidebar h3{margin:0 0 8px 0;color:#0f172a}
+        .lesson-item{padding:10px;border-radius:8px;margin-bottom:8px;background:linear-gradient(180deg,#ffffff,#f8fbff);cursor:pointer;display:flex;justify-content:space-between;align-items:center;border:1px solid #f1f5f9}
+        .lesson-item.active{box-shadow:0 8px 20px rgba(12,18,44,0.06);border-color:#dbeafe}
+        .lesson-meta{display:flex;gap:8px;align-items:center}
+        .workspace{background:var(--card);padding:16px;border-radius:10px;box-shadow:0 6px 18px rgba(12,18,44,0.04);min-height:60vh;overflow:auto}
+        .lesson-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+        .lesson-title{font-size:18px;font-weight:700}
+        .controls{display:flex;gap:8px}
+        .questions-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px}
+        .qcard{background:#fff;padding:12px;border-radius:10px;box-shadow:0 6px 18px rgba(12,18,44,0.03);border:1px solid #f1f5f9}
+        .qcard .qtext{font-weight:700;margin-bottom:8px}
+        .choices{display:flex;flex-direction:column;gap:6px}
+        .choice{padding:8px;border-radius:8px;background:#fbfdff;font-size:14px;border:1px solid #eef6ff}
+        .qactions{display:flex;gap:8px;margin-top:8px}
+        .small{padding:6px 8px;border-radius:8px;border:0;cursor:pointer;background:#eef6ff;color:var(--accent)}
+
+        /* modal */
+        .overlay{position:fixed;inset:0;background:rgba(2,6,23,0.45);display:flex;align-items:center;justify-content:center;z-index:40}
+        .modal{width:820px;max-width:95%;background:var(--card);border-radius:10px;padding:16px;box-shadow:0 20px 60px rgba(2,6,23,0.25);max-height:90vh;overflow:auto}
+        .modal h3{margin-top:0;margin-bottom:8px}
+        .form-row{display:flex;gap:8px;align-items:center}
+        input[type=text],textarea,select{width:100%;padding:10px;border-radius:8px;border:1px solid #e6eef9}
+        .answers{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+        .answer-row{display:flex;gap:8px;align-items:center}
+        .answer-row input{flex:1;padding:8px;border-radius:8px;border:1px solid #e6eef9}
+        .muted{color:var(--muted)}
+        .badge{background:var(--accent);color:white;padding:4px 8px;border-radius:999px;font-size:12px}
+
+        /* learn modal */
+        .learn-panel{width:720px;max-width:95%;background:var(--card);padding:18px;border-radius:10px;box-shadow:0 20px 60px rgba(2,6,23,0.2)}
+        .progress{height:10px;background:#eef6ff;border-radius:10px;margin-bottom:12px;overflow:hidden;border:1px solid #e6f0ff}
+        .bar{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent-2, #9dc6ff));width:0%}
+        .learn-q{font-weight:700;font-size:18px;margin-bottom:12px}
+        .learn-choices{display:flex;flex-direction:column;gap:10px}
+        .learn-choice{padding:12px;border-radius:8px;background:white;cursor:pointer;box-shadow:0 8px 20px rgba(12,18,44,0.04);border:1px solid #f1f5f9}
+        .learn-footer{display:flex;justify-content:space-between;align-items:center;margin-top:12px}
+
+        @media (max-width:860px){main{grid-template-columns:1fr} .sidebar{height:auto}}
+    </style>
+</head>
+<body>
+<header>
+    <h1>MCQ Lern-App</h1>
+    <div class="top-actions">
+        <button id="addLesson" class="btn">+ Lektion</button>
+    </div>
+</header>
+
+<main>
+    <aside class="sidebar">
+        <h3>Lektionen</h3>
+        <div id="lessons"></div>
+    </aside>
+
+    <section class="workspace">
+        <div class="lesson-header">
+            <div>
+                <div id="lessonTitle" class="lesson-title">(keine Lektion)</div>
+                <div id="lessonInfo" class="muted">Erstelle oder wähle eine Lektion</div>
+            </div>
+            <div class="controls">
+                <button id="addQuestionInLesson" class="small">Frage hinzufügen</button>
+                <button id="bulkImportBtn" class="small">Fragen einfügen</button>
+                <button id="startLearnBtn" class="small">Lernen starten</button>
+            </div>
+        </div>
+
+        <div id="questionsList" class="questions-list">
+            <div class="muted">Keine Fragen</div>
+        </div>
+    </section>
+</main>
+
+<!-- Modal: editor (add/edit questions) -->
+<div id="editorOverlay" class="overlay" style="display:none">
+    <div class="modal">
+        <h3 id="editorTitle">Fragen bearbeiten</h3>
+        <div id="multiContainer"></div>
+        <div style="display:flex;gap:8px;margin-top:12px;justify-content:flex-end">
+            <button id="addQuestionBlock" class="small">+ Neue Frage</button>
+            <button id="saveAll" class="small">Speichern</button>
+            <button id="cancelEdit" class="small">Abbrechen</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: bulk import -->
+<div id="importOverlay" class="overlay" style="display:none">
+    <div class="modal">
+        <h3>Fragen einfügen (Text)</h3>
+        <div class="muted" style="margin-bottom:8px">Format: Frage in eigener Zeile und die Antworten als Zeilen beginnend mit • oder als durch • getrennte Antworten in derselben Zeile. Mehrere Fragen können untereinander stehen.</div>
+        <textarea id="bulkInput" rows="12" placeholder="Welcher Begriff bezeichnet keinen Teil des Gehirns?\n• Telecephalon (Großhirn)\n• Endoencephalon (Innenhirn)\n• Diencephalon (Zwischenhirn)\n• Mesencephalon (Mittelhirn)\n• Metencephalon (Hinterhirn)\n\nWelche Aussage trifft zu? Die Dura Mater ist:\n• Eine weiche Hirnhaut\n• Eine seröse Haut des Lunge\n• Eine harte Hirnhaut"></textarea>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
+            <button id="parseBulk" class="small">Einfügen</button>
+            <button id="closeImport" class="small">Abbrechen</button>
+        </div>
+    </div>
+</div>
+
+<!-- Learn modal -->
+<div id="learnOverlay" class="overlay" style="display:none">
+    <div class="learn-panel" id="learnPanel"></div>
+</div>
+
+<script>
+    const $ = id => document.getElementById(id);
+    let state = {lessons:[], current:-1};
+
+    function save(){ localStorage.setItem('mcq_final', JSON.stringify(state)); }
+    function load(){ const raw = localStorage.getItem('mcq_final'); if(raw) state = JSON.parse(raw); }
+
+    // render lessons in sidebar
+    function renderLessons(){ const el = $('lessons'); el.innerHTML=''; state.lessons.forEach((l,i)=>{
+        const d = document.createElement('div'); d.className='lesson-item'+(i===state.current?' active':'');
+        const left = document.createElement('div'); left.textContent = l.title;
+        const meta = document.createElement('div'); meta.className='lesson-meta';
+        const learnBtn = document.createElement('button'); learnBtn.className='small'; learnBtn.textContent='Lernen'; learnBtn.onclick = (e)=>{ e.stopPropagation(); startLearningFromIndex(i); };
+        const editBtn = document.createElement('button'); editBtn.className='small'; editBtn.textContent='Bearb.'; editBtn.onclick = (e)=>{ e.stopPropagation(); openEditorAtLesson(i); };
+        const delBtn = document.createElement('button'); delBtn.className='small'; delBtn.textContent='Löschen'; delBtn.onclick = (e)=>{ e.stopPropagation(); if(confirm('Lektion löschen?')){ state.lessons.splice(i,1); if(state.current===i) state.current=-1; save(); render(); } };
+        meta.appendChild(learnBtn); meta.appendChild(editBtn); meta.appendChild(delBtn);
+        d.appendChild(left); d.appendChild(meta);
+        d.onclick = ()=>{ state.current = i; render(); };
+        el.appendChild(d);
+    }); }
+
+    function renderQuestions(){ const container = $('questionsList'); container.innerHTML=''; if(state.current<0){ $('lessonTitle').textContent='(keine Lektion)'; $('lessonInfo').textContent='Erstelle oder wähle eine Lektion'; return; }
+        const lesson = state.lessons[state.current]; $('lessonTitle').textContent = lesson.title; $('lessonInfo').textContent = lesson.questions.length + ' Fragen';
+        if(lesson.questions.length===0){ container.innerHTML='<div class="muted">Keine Fragen</div>'; return; }
+        lesson.questions.forEach((q,idx)=>{
+            const c = document.createElement('div'); c.className='qcard';
+            const qtxt = document.createElement('div'); qtxt.className='qtext'; qtxt.textContent = q.text; c.appendChild(qtxt);
+            const choices = document.createElement('div'); choices.className='choices'; q.choices.forEach((ch,i)=>{ const chd = document.createElement('div'); chd.className='choice'; chd.textContent = ch; if(q.correct===i){ const b = document.createElement('span'); b.className='badge'; b.style.marginLeft='8px'; b.textContent='Korrekt'; chd.appendChild(b); } choices.appendChild(chd); }); c.appendChild(choices);
+            const actions = document.createElement('div'); actions.className='qactions'; const editBtn = document.createElement('button'); editBtn.className='small'; editBtn.textContent='Bearbeiten'; editBtn.onclick = ()=>openEditor(idx); const delBtn = document.createElement('button'); delBtn.className='small'; delBtn.textContent='Löschen'; delBtn.onclick = ()=>{ if(confirm('Frage löschen?')){ lesson.questions.splice(idx,1); save(); render(); } };
+            actions.appendChild(editBtn); actions.appendChild(delBtn); c.appendChild(actions); container.appendChild(c);
+        }); }
+
+    function render(){ renderLessons(); renderQuestions(); save(); }
+
+    // helpers
+    function shuffle(arr){ for(let i=arr.length-1;i>0;i--){ const j = Math.floor(Math.random()*(i+1)); [arr[i],arr[j]] = [arr[j],arr[i]]; } }
+
+    // add lesson
+    $('addLesson').onclick = ()=>{ const name = prompt('Name der Lektion:','Neue Lektion'); if(!name) return; state.lessons.push({title:name,questions:[]}); state.current = state.lessons.length-1; render(); };
+
+    // Open editor for lesson (create multiple or single edit)
+    function openEditorAtLesson(lessonIndex){ state.current = lessonIndex; openEditor(); }
+
+    // Editor modal: can create many question blocks or edit a single question (when called with index)
+    function createQuestionBlock(q){ const wrap = document.createElement('div'); wrap.className='qcard'; wrap.style.marginBottom='10px';
+        const header = document.createElement('div'); header.style.display='flex'; header.style.justifyContent='space-between'; header.style.alignItems='center'; header.innerHTML = '<strong>Frage</strong>';
+        const removeBlockBtn = document.createElement('button'); removeBlockBtn.className='small'; removeBlockBtn.textContent='Entfernen'; removeBlockBtn.onclick = ()=>wrap.remove(); header.appendChild(removeBlockBtn);
+        wrap.appendChild(header);
+        const qt = document.createElement('input'); qt.type='text'; qt.placeholder='Fragetext'; qt.value = q?.text || ''; qt.style.marginTop='8px'; wrap.appendChild(qt);
+        const answers = document.createElement('div'); answers.className='answers'; answers.style.marginTop='8px'; (q?.choices || ['','']).forEach(a=>{ answers.appendChild(createAnswerRow(a)); });
+        const addAnsBtn = document.createElement('button'); addAnsBtn.className='small'; addAnsBtn.textContent='Antwort hinzufügen'; addAnsBtn.onclick = ()=>answers.appendChild(createAnswerRow(''));
+        wrap.appendChild(answers); wrap.appendChild(addAnsBtn);
+        const corrLabel = document.createElement('div'); corrLabel.style.marginTop='8px'; corrLabel.innerHTML = 'Korrekte Antwort: <select></select>';
+        wrap.appendChild(corrLabel);
+
+        function refreshOptions(){ const sel = corrLabel.querySelector('select'); sel.innerHTML=''; const rows = answers.querySelectorAll('input'); rows.forEach((r,i)=>{ const opt = document.createElement('option'); opt.value = i; opt.textContent = String.fromCharCode(65+i) + (r.value?(' — '+(r.value.length>30? r.value.slice(0,27)+'...' : r.value)):''); sel.appendChild(opt); }); }
+        answers.addEventListener('input', refreshOptions);
+        answers.addEventListener('click', (e)=>{ const b = e.target.closest('button'); if(!b) return; if(b.dataset.act==='remans') b.closest('.answer-row').remove(); refreshOptions(); });
+        setTimeout(refreshOptions,20);
+        if(typeof q?.correct==='number') setTimeout(()=>{ const sel = corrLabel.querySelector('select'); if(sel) sel.value = q.correct; },40);
+        // attach helpers
+        wrap.getData = ()=>{
+            const text = qt.value.trim(); const ans = Array.from(answers.querySelectorAll('input')).map(i=>i.value.trim()).filter(Boolean); const sel = corrLabel.querySelector('select'); const corr = sel ? Number(sel.value) : 0; return {text, choices:ans, correct: Math.min(corr, ans.length-1)};
+        };
+        return wrap;
+    }
+    function createAnswerRow(value){ const row = document.createElement('div'); row.className='answer-row'; const inp = document.createElement('input'); inp.type='text'; inp.placeholder='Antworttext'; inp.value = value; const rem = document.createElement('button'); rem.className='small'; rem.textContent='✖'; rem.dataset.act='remans'; row.appendChild(inp); row.appendChild(rem); return row; }
+
+    function openEditor(editIndex = null){ const overlay = $('editorOverlay'); const container = $('multiContainer'); container.innerHTML=''; overlay.style.display='flex'; $('editorTitle').textContent = editIndex===null ? 'Fragen bearbeiten / hinzufügen' : 'Frage bearbeiten';
+        if(editIndex===null){ // start with one empty block
+            container.appendChild(createQuestionBlock());
+        } else {
+            const q = JSON.parse(JSON.stringify(state.lessons[state.current].questions[editIndex])); const block = createQuestionBlock(q); container.appendChild(block); container.dataset.editIndex = editIndex;
+        }
+    }
+
+    $('addQuestionInLesson').onclick = ()=>{ if(state.current<0){ alert('Bitte Lektion auswählen'); return; } openEditor(); };
+    $('addQuestionBlock').onclick = ()=>{ $('multiContainer').appendChild(createQuestionBlock()); };
+    $('cancelEdit').onclick = ()=>{ $('editorOverlay').style.display='none'; delete $('multiContainer').dataset.editIndex; };
+
+    $('saveAll').onclick = ()=>{
+        const container = $('multiContainer'); const blocks = container.querySelectorAll('.qcard'); if(blocks.length===0){ alert('Keine Frage vorhanden'); return; }
+        const lesson = state.lessons[state.current];
+        if(container.dataset.editIndex){ const idx = Number(container.dataset.editIndex); const b = blocks[0]; const qobj = b.getData(); if(!qobj.text || qobj.choices.length<2){ alert('Frage oder Antworten fehlen'); return; } lesson.questions[idx] = qobj; delete container.dataset.editIndex; }
+        else { blocks.forEach(b=>{ const qobj = b.getData(); if(qobj.text && qobj.choices.length>=2) lesson.questions.push(qobj); }); }
+        $('editorOverlay').style.display='none'; render(); }
+
+    // Bulk import modal
+    $('bulkImportBtn').onclick = ()=>{ if(state.current<0){ alert('Bitte Lektion auswählen'); return; } $('importOverlay').style.display='flex'; };
+    $('closeImport').onclick = ()=>{ $('importOverlay').style.display='none'; };
+
+    function parseBulkText(text){ const lines = text.split(/\r?\n/).map(l=>l.trim());
+        const questions = []; let current = null;
+        function pushCurrent(){ if(current && current.q && current.choices.length>=2){ questions.push({text: current.q, choices: current.choices.slice(), correct:0}); } current = null; }
+        for(let i=0;i<lines.length;i++){ const line = lines[i]; if(line==='') { pushCurrent(); continue; }
+            // inline bullets in same line
+            if(line.includes('•')){
+                const parts = line.split('•').map(p=>p.trim()).filter(Boolean);
+                if(parts.length>1){ // if we already building question and parts are only choices
+                    if(!current){ current = {q: parts[0], choices: parts.slice(1)}; }
+                    else { // if current exists and first part looks like question? handle generically: if current.q empty set
+                        if(!current.q) current.q = parts[0]; else current.choices.push(...parts.filter((p,idx)=>!(idx===0 && p===current.q)));
+                    }
+                } else { // single part with bullet? treat as choice
+                    if(!current) current = {q:'', choices:[]}; current.choices.push(parts[0]);
+                }
+                continue;
+            }
+            // line starts with • or -
+            if(line[0]==='•' || line[0]==='-' || line[0]==='*'){ const txt = line.replace(/^[-–*•]+\s*/,'').trim(); if(!current) current={q:'',choices:[]}; current.choices.push(txt); continue; }
+            // otherwise it's a non-bullet line => probably question
+            if(!current){ current={q:line, choices:[]}; } else if(current.q && current.choices.length===0){ // might be question split across lines
+                current.q += ' ' + line; }
+            else if(!current.q){ current.q = line; }
+            else { // ambiguous: this line may start a new question
+                pushCurrent(); current = {q:line, choices:[]}; }
+        }
+        pushCurrent(); return questions; }
+
+    $('parseBulk').onclick = ()=>{
+        const text = $('bulkInput').value.trim(); if(!text){ alert('Kein Text'); return; }
+        const parsed = parseBulkText(text);
+        if(parsed.length===0){ alert('Keine Fragen erkannt. Prüfe das Format.'); return; }
+        const lesson = state.lessons[state.current]; parsed.forEach(p=>lesson.questions.push(p)); $('bulkInput').value=''; $('importOverlay').style.display='none'; render(); alert(parsed.length + ' Fragen hinzugefügt.');
+    };
+
+    // edit single question (from list)
+    function openEditor(index){ state.current; // ensure
+        openEditorWindowForIndex(index);
+    }
+    function openEditorWindowForIndex(index){ const overlay = $('editorOverlay'); const container = $('multiContainer'); container.innerHTML = ''; overlay.style.display='flex'; const q = JSON.parse(JSON.stringify(state.lessons[state.current].questions[index])); const block = createQuestionBlock(q); container.appendChild(block); container.dataset.editIndex = index; }
+
+    // Learning
+    function startLearningFromIndex(index){ state.current = index; render(); startLearning(state.lessons[index]); }
+
+    function startLearning(lesson){ const overlay = $('learnOverlay'); const panel = $('learnPanel'); overlay.style.display='flex'; panel.innerHTML='';
+        const queue = lesson.questions.map(q=>JSON.parse(JSON.stringify(q))); shuffle(queue);
+        const total = queue.length; let correctCount = 0; let asked = 0;
+
+        function renderCard(){ panel.innerHTML='';
+            const progressWrap = document.createElement('div'); progressWrap.className='progress'; const progressBar = document.createElement('div'); progressBar.className='bar'; progressWrap.appendChild(progressBar); panel.appendChild(progressWrap);
+            const meta = document.createElement('div'); meta.style.display='flex'; meta.style.justifyContent='space-between'; meta.style.alignItems='center'; meta.style.marginBottom='8px'; meta.innerHTML = `<div class='muted'>Frage ${asked+1} von ${total}</div><div class='muted'>Verbleibend: ${queue.length}</div>`; panel.appendChild(meta);
+
+            const q = queue.shift(); asked++;
+            const qtitle = document.createElement('div'); qtitle.className='learn-q'; qtitle.textContent = q.text; panel.appendChild(qtitle);
+
+            const choices = document.createElement('div'); choices.className='learn-choices';
+            q.choices.forEach((c,i)=>{ const d = document.createElement('div'); d.className='learn-choice'; d.textContent = c; d.onclick = ()=>{ if(d.dataset.disabled) return; d.dataset.disabled = '1'; if(i===q.correct){ d.style.border = '2px solid var(--success)'; correctCount++; setTimeout(()=>{ updateProgress(); if(queue.length===0) finish(); else renderCard(); },600); } else { d.style.border = '2px solid var(--danger)'; queue.push(q); setTimeout(()=>{ updateProgress(); if(queue.length===0) finish(); else renderCard(); },700); } }; choices.appendChild(d); }); panel.appendChild(choices);
+
+            const footer = document.createElement('div'); footer.className='learn-footer'; const cancel = document.createElement('button'); cancel.className='small'; cancel.textContent='Abbrechen'; cancel.onclick = ()=>{ if(confirm('Lernen abbrechen?')){ overlay.style.display='none'; } }; footer.appendChild(cancel);
+            const stats = document.createElement('div'); stats.className='muted'; stats.textContent = `${correctCount} richtig · ${asked} beantwortet`; footer.appendChild(stats); panel.appendChild(footer);
+
+            // update bar
+            function updateProgress(){ const pct = Math.round((correctCount/total)*100); progressBar.style.width = pct + '%'; }
+            updateProgress(); }
+
+        function finish(){ panel.innerHTML = `<h3>Fertig 🎉</h3><p>${correctCount} von ${total} Fragen korrekt beantwortet.</p><div style='display:flex;gap:8px;justify-content:flex-end;margin-top:12px'><button id='closeLearn' class='small'>Schließen</button></div>`; $('closeLearn').onclick = ()=>{ $('learnOverlay').style.display='none'; }; }
+
+        renderCard(); }
+
+    load(); if(state.lessons.length===0){ state.lessons.push({title:'Anatomie', questions:[]}); state.current = 0; } render();
+</script>
+</body>
+</html>
