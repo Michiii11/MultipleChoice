@@ -325,33 +325,88 @@
         startLearningFromIndex(state.current);
     };
 
-    function parseBulkText(text){ const lines = text.split(/\r?\n/).map(l=>l.trim());
-        const questions = []; let current = null;
-        function pushCurrent(){ if(current && current.q && current.choices.length>=2){ questions.push({text: current.q, choices: current.choices.slice(), correct:0}); } current = null; }
-        for(let i=0;i<lines.length;i++){ const line = lines[i]; if(line==='') { pushCurrent(); continue; }
-            // inline bullets in same line
-            if(line.includes('•')){
-                const parts = line.split('•').map(p=>p.trim()).filter(Boolean);
-                if(parts.length>1){ // if we already building question and parts are only choices
-                    if(!current){ current = {q: parts[0], choices: parts.slice(1)}; }
-                    else { // if current exists and first part looks like question? handle generically: if current.q empty set
-                        if(!current.q) current.q = parts[0]; else current.choices.push(...parts.filter((p,idx)=>!(idx===0 && p===current.q)));
+    function parseBulkText(text) {
+        const lines = text.split(/\r?\n/).map(l => l.trim());
+        const questions = [];
+        let current = null;
+        function pushCurrent() {
+            if (current && current.q && current.choices.length >= 2) {
+                // Korrekte Antwort bestimmen
+                let correct = 0;
+                current.choices.forEach((ans, idx) => {
+                    if (ans.startsWith('x ')) {
+                        correct = idx;
+                        current.choices[idx] = ans.replace(/^x\s*/, ''); // 'x ' entfernen
                     }
-                } else { // single part with bullet? treat as choice
-                    if(!current) current = {q:'', choices:[]}; current.choices.push(parts[0]);
+                });
+                questions.push({ text: current.q, choices: current.choices.slice(), correct });
+            }
+            current = null;
+        }
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            if (line === '') { pushCurrent(); continue; }
+            // inline bullets in same line
+            if (line.includes('•') || line.includes('x ')) {
+                // Split nach • oder x
+                const parts = line.split(/•|x /).map(p => p.trim()).filter(Boolean);
+                if (parts.length > 1) {
+                    if (!current) {
+                        current = { q: parts[0], choices: [] };
+                        // Prüfe, ob die erste Antwort mit x beginnt
+                        for (let j = 1; j < parts.length; j++) {
+                            if (line.includes('x ' + parts[j])) {
+                                current.choices.push('x ' + parts[j]);
+                            } else {
+                                current.choices.push(parts[j]);
+                            }
+                        }
+                    } else {
+                        for (let j = 1; j < parts.length; j++) {
+                            if (line.includes('x ' + parts[j])) {
+                                current.choices.push('x ' + parts[j]);
+                            } else {
+                                current.choices.push(parts[j]);
+                            }
+                        }
+                    }
+                    continue;
+                } else {
+                    // Einzelne Antwortzeile
+                    if (!current) current = { q: '', choices: [] };
+                    if (line.startsWith('x ')) {
+                        current.choices.push(line);
+                    } else {
+                        current.choices.push(line.replace(/^•\s*/, ''));
+                    }
+                    continue;
+                }
+            }
+            // line starts with • or x
+            if (line[0] === '•' || line[0] === '-' || line[0] === '*' || line.startsWith('x ')) {
+                const txt = line.replace(/^[-–*•]+\s*/, '').trim();
+                if (!current) current = { q: '', choices: [] };
+                if (line.startsWith('x ')) {
+                    current.choices.push('x ' + txt);
+                } else {
+                    current.choices.push(txt);
                 }
                 continue;
             }
-            // line starts with • or -
-            if(line[0]==='•' || line[0]==='-' || line[0]==='*'){ const txt = line.replace(/^[-–*•]+\s*/,'').trim(); if(!current) current={q:'',choices:[]}; current.choices.push(txt); continue; }
             // otherwise it's a non-bullet line => probably question
-            if(!current){ current={q:line, choices:[]}; } else if(current.q && current.choices.length===0){ // might be question split across lines
-                current.q += ' ' + line; }
-            else if(!current.q){ current.q = line; }
-            else { // ambiguous: this line may start a new question
-                pushCurrent(); current = {q:line, choices:[]}; }
+            if (!current) { current = { q: line, choices: [] }; }
+            else if (current.q && current.choices.length === 0) {
+                current.q += ' ' + line;
+            }
+            else if (!current.q) { current.q = line; }
+            else {
+                pushCurrent();
+                current = { q: line, choices: [] };
+            }
         }
-        pushCurrent(); return questions; }
+        pushCurrent();
+        return questions;
+    }
 
     $('parseBulk').onclick = ()=>{
         const text = $('bulkInput').value.trim(); if(!text){ alert('Kein Text'); return; }
@@ -405,8 +460,11 @@
                         setTimeout(() => { updateProgress(); if (queue.length === 0) finish(); else renderCard(); }, 600);
                     } else {
                         d.style.border = '2px solid var(--danger)';
+                        // Richtige Antwort hervorheben
+                        choices.childNodes[correctIdx].style.border = '2px solid var(--success)';
+                        choices.childNodes[correctIdx].style.background = '#e6fbe6';
                         queue.push(q);
-                        setTimeout(() => { updateProgress(); if (queue.length === 0) finish(); else renderCard(); }, 700);
+                        setTimeout(() => { updateProgress(); if (queue.length === 0) finish(); else renderCard(); }, 1200);
                     }
                 };
                 choices.appendChild(d);
@@ -424,7 +482,7 @@
 
         renderCard(); }
 
-    load(); if(state.lessons.length===0){ state.lessons.push({title:'Anatomie', questions:[]}); state.current = 0; } render();
+    load(); render();
 </script>
 </body>
 </html>
